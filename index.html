@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Glassworks">
+<title>Glassworks — Visitor Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@200;300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #F2F4F8;
+    --ink: #2C3A4A;
+    --warm: #7BAABF;
+    --warm-light: #C8D8E8;
+    --muted: #8A9AAB;
+    --surface: #FFFFFF;
+    --border: #DDE4EC;
+    --success: #5A9AAF;
+    --blush: #C4A8B8;
+    --sky: #7BAABF;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: linear-gradient(145deg, #E8D5E0 0%, #F2F4F8 40%, #C8DDE8 100%);
+    color: var(--ink);
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -100px; right: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(123,170,191,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -80px; left: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(196,168,184,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    min-height: -webkit-fill-available;
+    animation: fadeUp 0.35s ease both;
+  }
+  .screen.active { display: flex; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* WELCOME */
+  #screen-welcome {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 48px;
+    background: transparent;
+  }
+
+  
+
+  .welcome-logo-wrap {
+    width: 320px;
+    height: auto;
+    margin-bottom: 32px;
+    filter: drop-shadow(0 4px 16px rgba(44,58,74,0.18));
+  }
+  .welcome-logo-wrap svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .welcome-logo-wrap svg path,
+  .welcome-logo-wrap svg g[fill="#fff"] {
+    fill: var(--ink) !important;
+  }
+
+  .welcome-badge {
+    display: inline-block;
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--sky);
+    border: 1px solid var(--warm-light);
+    padding: 6px 18px; border-radius: 100px;
+    margin-bottom: 28px;
+  }
+
+  .welcome-title {
+    font-family: 'Raleway', sans-serif;
+    font-size: 64px; font-weight: 200;
+    line-height: 1.05; letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .welcome-sub {
+    font-size: 15px; color: var(--muted);
+    font-weight: 300; margin-bottom: 52px;
+    letter-spacing: 0.01em;
+  }
+
+  .visitor-types {
+    display: flex; gap: 18px;
+    margin-bottom: 36px;
+  }
+
+  .type-card {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 12px;
+    padding: 28px 20px 24px;
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .type-card:active { transform: scale(0.97); border-color: var(--sky); }
+
+  .type-icon {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .type-card.company   .type-icon { background: rgba(123,170,191,0.15); }
+  .type-card.contractor .type-icon { background: rgba(196,168,184,0.15); }
+  .type-card.general   .type-icon { background: rgba(136,136,128,0.10); }
+
+  .type-label {
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink);
+  }
+  .type-desc {
+    font-size: 12px; font-weight: 300;
+    color: var(--muted); line-height: 1.5;
+  }
+
+  .signout-link {
+    font-size: 13px; font-weight: 300;
+    letter-spacing: 0.06em; color: var(--muted);
+    background: none; border: none; cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-transform: uppercase;
+  }
+
+  /* FORM */
+  #screen-form { padding: 0; }
+
+  .form-header {
+    background: linear-gradient(135deg, #3A5A7A, #6A4A7A);
+    padding: 28px 48px;
+    display: flex; align-items: center; gap: 20px;
+    flex-shrink: 0;
+  }
+
+  .form-badge {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 5px 14px; border-radius: 100px;
+  }
+
+  .form-header-title {
+    font-family: 'Raleway', sans-serif;
+    font-size: 28px; font-weight: 300; color: white;
+  }
+
+  .back-btn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.7);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 8px 16px; border-radius: 100px;
+    cursor: pointer; transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .back-btn:active { background: rgba(255,255,255,0.1); }
+
+  .form-body {
+    flex: 1;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    padding: 36px 48px 380px;
+    display: flex; flex-direction: column; gap: 22px;
+    overscroll-behavior: contain;
+  }
+
+  .scroll-top-btn {
+    position: fixed;
+    bottom: 130px; right: 48px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    color: var(--ink);
+    font-size: 20px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(44,58,74,0.12);
+    z-index: 100;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .scroll-top-btn.visible { display: flex; }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field.full { grid-column: 1/-1; }
+
+  label {
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  input, select {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px; font-weight: 300;
+    color: var(--ink);
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 15px 20px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+    width: 100%;
+  }
+  input:focus, select:focus {
+    border-color: var(--warm);
+    box-shadow: 0 0 0 3px rgba(200,169,106,0.12);
+    background: var(--surface);
+  }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888880' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-color: var(--cream);
+    padding-right: 44px; cursor: pointer;
+  }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 400;
+    padding: 10px 20px; border-radius: 100px;
+    cursor: pointer; transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .chip.selected { background: var(--ink); border-color: var(--ink); color: white; }
+  .chip:active { transform: scale(0.96); }
+
+  .contacts-grid { display: grid; gap: 10px; }
+  .contact-card {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: 12px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .contact-card.selected { border-color: var(--warm); background: rgba(200,169,106,0.07); }
+  .contact-card:active { transform: scale(0.98); }
+  .contact-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(135deg, #C4A8B8, #7BAABF);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; color: white; flex-shrink: 0;
+  }
+  .contact-name { font-size: 14px; font-weight: 400; }
+  .contact-role { font-size: 12px; font-weight: 300; color: var(--muted); }
+  .contact-floor {
+    margin-left: auto;
+    font-size: 11px; font-weight: 300;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .agreement {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  .checkbox-wrap {
+    flex-shrink: 0; width: 24px; height: 24px;
+    border: 2px solid var(--border); border-radius: 6px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    margin-top: 2px;
+  }
+  .checkbox-wrap.checked { background: var(--ink); border-color: var(--ink); }
+  .check-icon { display: none; color: white; font-size: 14px; }
+  .checkbox-wrap.checked .check-icon { display: block; }
+  .agreement-text { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .form-footer {
+    padding: 22px 48px;
+    border-top: 1px solid var(--border);
+    background: rgba(242,244,248,0.85);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 20px; flex-shrink: 0;
+  }
+
+  .notif-note {
+    font-size: 12px; font-weight: 300;
+    color: var(--muted);
+    display: none; align-items: center; gap: 6px;
+  }
+  .notif-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+
+  .btn-submit {
+    background: linear-gradient(135deg, #5A8AAB, #9A7AAB); color: white;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 16px 48px; border-radius: 100px;
+    cursor: pointer; transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    opacity: 0.35; pointer-events: none;
+  }
+  .btn-submit.ready { opacity: 1; pointer-events: all; }
+  .btn-submit.ready:active { transform: scale(0.97); background: linear-gradient(135deg, #4A7A9B, #8A6A9B); }
+
+  /* SUCCESS */
+  #screen-success {
+    align-items: center; justify-content: center;
+    text-align: center; padding: 60px 48px;
+  }
+
+  .success-circle {
+    width: 110px; height: 110px;
+    background: linear-gradient(135deg, #7BAABF, #9A7AAB); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 36px;
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes popIn {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+  .success-icon { font-size: 44px; color: white; }
+
+  .success-title {
+    font-family: 'Raleway', sans-serif;
+    font-size: 50px; font-weight: 300;
+    line-height: 1.1; margin-bottom: 14px;
+  }
+  .success-name { font-style: italic; color: var(--sky); }
+
+  .success-sub   { font-size: 15px; color: var(--muted); font-weight: 300; margin-bottom: 6px; }
+  .success-detail { font-size: 13px; color: var(--muted); font-weight: 300; margin-bottom: 48px; }
+  .success-detail strong { color: var(--ink); font-weight: 400; }
+
+  .notif-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px; margin-bottom: 44px;
+    border-radius: 100px;
+    background: rgba(90,154,175,0.10);
+    border: 1px solid rgba(90,154,175,0.25);
+    font-size: 12px; font-weight: 400;
+    color: var(--success); letter-spacing: 0.04em;
+  }
+  .notif-pill.hidden { display: none; }
+
+  .countdown {
+    font-size: 12px; font-weight: 300;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* SIGN OUT */
+  #screen-signout { padding: 0; }
+
+  .signout-body {
+    flex: 1; overflow-y: auto;
+    padding: 28px 48px 0;
+  }
+
+  .search-wrap { margin-bottom: 20px; }
+
+  .visitor-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .visitor-row:last-child { border-bottom: none; }
+  .visitor-row:active { opacity: 0.65; }
+
+  .visitor-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: linear-gradient(135deg, #C4A8B8, #7BAABF);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 500; color: white; flex-shrink: 0;
+  }
+  .visitor-info { flex: 1; }
+  .visitor-name { font-size: 15px; font-weight: 400; }
+  .visitor-meta { font-size: 12px; font-weight: 300; color: var(--muted); }
+  .visitor-time-in { font-size: 12px; font-weight: 300; color: var(--muted); text-align: right; }
+
+  .empty-state {
+    text-align: center; color: var(--muted);
+    margin-top: 80px; font-size: 15px; font-weight: 300;
+  }
+  .empty-state span { display: block; font-size: 32px; margin-bottom: 12px; }
+
+  /* SIGN OUT CONFIRMED */
+  #screen-confirmed {
+    align-items: center; justify-content: center;
+    text-align: center; padding: 60px 48px;
+  }
+  .confirmed-circle {
+    width: 110px; height: 110px;
+    background: linear-gradient(135deg, #7BAABF, #C4A8B8); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 36px;
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    font-size: 42px;
+  }
+
+  /* LOG */
+  #screen-log { padding: 0; }
+
+  .log-header {
+    background: linear-gradient(135deg, #3A5A7A, #6A4A7A);
+    padding: 28px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .log-header-title {
+    font-family: 'Raleway', sans-serif;
+    font-size: 28px; font-weight: 300; color: white;
+  }
+
+  .log-body { flex: 1; overflow-y: auto; }
+
+  .log-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .log-table th {
+    text-align: left;
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted);
+    padding: 14px 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+    position: sticky; top: 0; background: #F2F4F8;
+    white-space: nowrap; overflow: hidden;
+  }
+  .log-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 300;
+    white-space: normal; word-break: break-word;
+  }
+  .log-table th:nth-child(1), .log-table td:nth-child(1) { width: 7%; }
+  .log-table th:nth-child(2), .log-table td:nth-child(2) { width: 14%; }
+  .log-table th:nth-child(3), .log-table td:nth-child(3) { width: 14%; }
+  .log-table th:nth-child(4), .log-table td:nth-child(4) { width: 20%; }
+  .log-table th:nth-child(5), .log-table td:nth-child(5) { width: 13%; }
+  .log-table th:nth-child(6), .log-table td:nth-child(6) { width: 13%; }
+  .log-table th:nth-child(7), .log-table td:nth-child(7) { width: 10%; }
+  .log-table th:nth-child(8), .log-table td:nth-child(8) { width: 9%; }
+  .log-table tr:last-child td { border-bottom: none; }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px; font-weight: 400;
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .tag.company    { background: rgba(123,170,191,0.18); color: var(--ink); }
+  .tag.contractor { background: rgba(196,168,184,0.18); color: #7A5A6A; }
+  .tag.general    { background: rgba(136,136,128,0.12); color: var(--muted); }
+  .tag.out        { background: rgba(74,124,89,0.15); color: var(--success); }
+
+  .admin-tap {
+    position: fixed; bottom: 0; right: 0;
+    width: 80px; height: 80px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- WELCOME -->
+<div class="screen active" id="screen-welcome">
+  
+
+  <div class="welcome-logo-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" width="800" height="72" viewBox="0 0 800 72"><title>Glassworks Small Logo</title><g id="Glassworks" fill="none" fill-rule="evenodd" stroke="none" stroke-width="1"><g id="glassworks/1366/slide-1" fill-rule="nonzero" transform="translate(-283 -344)"><g id="Glassworks-Small-Logo" transform="translate(283 344)"><path id="Path" d="M0 36.169C0 15.719 14.62 0 34.764 0 44.71 0 52.614 3.211 59.5 9.55l-4.335 4.816c-5.525-4.732-10.88-8.112-20.4-8.112C18.19 6.338 6.97 19.268 6.97 36.169s11.305 29.408 27.88 29.408c6.969 0 14.534-1.436 20.994-6.676v-19.52H34.679v-5.916h27.624v12.76L57.12 65.07c-6.375 4.564-14.025 6.761-22.27 6.761C14.62 71.831 0 56.62 0 36.169M85.848 70.394V30.085l6.545-23.662v58.056h39.014v5.915Z"/><path id="Shape" d="m148.831 70.394 30.77-68.873h6.8l26.264 58.817-2.89 10.056-7.905-18.253h-38.164l-7.99 18.253Zm17.595-24.169h32.894L182.915 9.127Z"/><path id="Path" d="m232.81 61.352 4.59-5.408c7.564 6.676 14.194 9.633 23.373 9.633 8.925 0 15.725-4.225 15.725-12.253 0-6.93-5.185-10.901-13.94-13.352l-9.01-2.45c-7.48-2.114-13.684-5.494-16.149-11.832l5.865-21.042c3.91-2.789 9.265-4.563 15.385-4.563 9.434 0 17 3.887 22.694 8.281l-4.165 5.324c-7.395-5.24-12.41-7.267-19.38-7.267-8.67 0-14.96 4.225-14.96 11.577 0 7.183 5.27 10.901 14.11 13.183l7.99 2.028c11.815 2.874 18.955 9.043 18.955 18.76 0 11.578-9.52 19.944-23.12 19.944-10.284-.084-19.889-3.549-27.964-10.563M308.117 61.352l4.59-5.408c7.565 6.676 14.11 9.633 23.29 9.633 9.01 0 15.81-4.225 15.81-12.253 0-6.93-5.27-10.901-14.025-13.352l-8.925-2.45c-9.945-2.79-17.765-8.367-17.765-18.93C311.092 6.507 321.972 0 333.787 0c9.52 0 17.084 3.887 22.78 8.282l-4.166 5.324c-7.395-5.24-12.494-7.268-19.464-7.268-8.67 0-14.875 4.225-14.875 11.577 0 7.184 5.27 10.902 14.11 13.184l7.99 2.028c8.67 2.281 14.79 6.338 17.34 11.83l-6.29 22.395c-3.826 2.704-9.18 4.563-15.385 4.563-10.2-.084-19.635-3.549-27.71-10.563M401.02 70.394l-19.975-56.619 3.485-12.254 19.975 58.648L423.8 1.521h6.544l19.125 58.648 19.634-58.648h7.395l-24.309 68.873h-6.545L426.86 12.085l-19.295 58.309Z"/><path id="Shape" d="M554.356 60.76c-6.035 6.592-16.064 11.155-25.754 11.155-19.975-.084-34.764-15.549-34.764-35.746S508.628 0 528.602 0c17.34 0 31.874 12.93 34.424 29.155Zm2.21-24.591c0-16.648-11.475-29.831-27.964-29.831s-27.88 13.183-27.88 29.831 11.39 29.408 27.88 29.408 27.964-12.76 27.964-29.408M590.395 70.394V21.887l5.78-20.366h23.035c13.854 0 24.479 7.437 24.479 20.62 0 12-8.33 19.352-19.975 20.873l21.845 27.38h-7.395L616.32 43.352h-19.465v27.042Zm6.545-32.957h21.845c10.71 0 17.934-5.409 17.934-15.38s-7.225-14.705-17.934-14.705H596.94Z"/><path id="Path" d="M673.438 70.394V1.521h6.545v42.423l40.544-42.423h7.14l-28.644 30.254 24.564 31.014-1.7 6.761-26.689-33.804-15.215 15.55V70.31h-6.545ZM748.916 61.352l4.59-5.408c7.565 6.676 14.195 9.633 23.375 9.633 8.924 0 15.724-4.225 15.724-12.253 0-6.93-5.185-10.901-13.94-13.352l-9.01-2.45c-7.48-2.114-13.684-5.494-16.149-11.832l5.865-21.042c3.91-2.789 9.265-4.563 15.385-4.563 9.434 0 17 3.887 22.694 8.281l-4.165 5.324c-7.395-5.24-12.41-7.267-19.38-7.267-8.67 0-14.959 4.225-14.959 11.577 0 7.183 5.27 10.901 14.11 13.183l7.99 2.028C792.86 36.17 800 42.423 800 52.056 800 63.634 790.48 72 776.88 72c-10.37-.169-19.889-3.634-27.964-10.648"/></g></g></g></svg>
+  </div>
+
+  <div class="welcome-badge">Visitor Registration</div>
+  <div class="welcome-title">Welcome.</div>
+  <div class="welcome-sub">Please select how you are visiting today.</div>
+
+  <div class="visitor-types">
+    <button class="type-card company" onclick="startFlow('company')">
+      <div class="type-icon">&#127970;</div>
+      <div class="type-label">Company Visitor</div>
+      <div class="type-desc">Visiting a tenant<br>in the building</div>
+    </button>
+    <button class="type-card contractor" onclick="startFlow('contractor')">
+      <div class="type-icon">&#128295;</div>
+      <div class="type-label">Contractor</div>
+      <div class="type-desc">Maintenance, delivery<br>or building works</div>
+    </button>
+    <button class="type-card general" onclick="startFlow('general')">
+      <div class="type-icon">&#128100;</div>
+      <div class="type-label">General Visit</div>
+      <div class="type-desc">Viewing, enquiry<br>or other purpose</div>
+    </button>
+  </div>
+
+  <button class="signout-link" onclick="show('signout')">Sign out</button>
+</div>
+
+
+<!-- FORM -->
+<div class="screen" id="screen-form">
+  <div class="form-header">
+    <div class="form-badge" id="form-badge">Visitor</div>
+    <div class="form-header-title" id="form-title">Sign In</div>
+    <button class="back-btn" onclick="show('welcome')">&#8592; Back</button>
+  </div>
+  <div class="form-body" id="form-body"></div>
+  <div class="form-footer">
+    <div class="notif-note" id="notif-note">
+      <span class="notif-dot"></span> Host will be notified by email
+    </div>
+    <button class="btn-submit" id="btn-submit" onclick="submitForm()">Complete Sign In &#8594;</button>
+  </div>
+</div>
+
+
+<!-- SUCCESS -->
+<div class="screen" id="screen-success">
+  <div class="success-circle"><span class="success-icon">&#10003;</span></div>
+  <div class="success-title">Signed in,<br><span class="success-name" id="suc-name">--</span></div>
+  <div class="success-sub"  id="suc-sub">--</div>
+  <div class="success-detail" id="suc-detail"></div>
+  <div class="notif-pill" id="suc-notif">&#9993; Your host has been notified</div>
+  <div class="countdown" id="countdown">Returning in 5...</div>
+</div>
+
+
+<!-- SIGN OUT LIST -->
+<div class="screen" id="screen-signout">
+  <div class="form-header">
+    <div class="form-header-title">Sign Out</div>
+    <button class="back-btn" onclick="show('welcome')">&#8592; Back</button>
+  </div>
+  <div class="signout-body">
+    <div class="search-wrap">
+      <input type="text" id="search-input" placeholder="Search by name..." oninput="renderSignoutList()">
+    </div>
+    <div id="signout-list"></div>
+  </div>
+</div>
+
+
+<!-- SIGN OUT CONFIRM -->
+<div class="screen" id="screen-signout-confirm">
+  <div class="form-header">
+    <div class="form-header-title">Confirm Sign Out</div>
+    <button class="back-btn" onclick="show('signout')">&#8592; Back</button>
+  </div>
+  <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:48px;">
+    <div class="visitor-avatar" style="width:72px;height:72px;font-size:22px;margin-bottom:28px;" id="confirm-avatar">--</div>
+    <div class="success-title" style="font-size:40px;margin-bottom:10px;">Signing out<br><span class="success-name" id="confirm-name">--</span>?</div>
+    <div class="success-sub" style="margin-bottom:48px;" id="confirm-meta"></div>
+    <div style="display:flex;gap:16px;">
+      <button class="back-btn" style="font-size:15px;padding:16px 36px;border-radius:100px;color:var(--muted);border-color:var(--border);" onclick="show('signout')">Cancel</button>
+      <button class="btn-submit ready" style="font-size:15px;padding:16px 36px;" onclick="confirmSignOut()">Yes, Sign Out</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- SIGN OUT CONFIRMED -->
+<div class="screen" id="screen-confirmed">
+  <div class="confirmed-circle">&#128075;</div>
+  <div class="success-title">Goodbye,<br><span class="success-name" id="conf-name">--</span></div>
+  <div class="success-sub">You have been signed out.</div>
+  <div class="success-detail" id="conf-time" style="margin-bottom:48px;"></div>
+  <div class="countdown" id="conf-countdown">Returning in 5...</div>
+</div>
+
+
+<!-- ADMIN LOG -->
+<div class="screen" id="screen-log">
+  <div class="log-header">
+    <div class="log-header-title">Visitor Log &#8212; Today</div>
+    <button class="back-btn" onclick="show('welcome')">&#8592; Exit</button>
+  </div>
+  <div class="log-body" id="log-body"></div>
+</div>
+
+<button class="scroll-top-btn" id="scroll-top-btn" onclick="scrollFormTop()">&#8679;</button>
+<div class="admin-tap" id="admin-tap"></div>
+
+<script>
+  const COMPANIES = [
+    { id: 'actuate',   name: 'Actuate Global',     floor: 'Floor 7' },
+    { id: 'raven',     name: 'RavenTrack',          floor: 'Floor 8' },
+    { id: 'prospero',  name: 'Prospero Teaching',   floor: 'Floor 12' },
+    { id: 'octa',      name: 'Octapharma',          floor: 'Floor 14' },
+    { id: 'test',      name: 'Glassworks',          floor: 'Reception' },
+  ];
+
+  const CONTACTS = {
+    actuate:  [
+      { name: 'Bianca George',   role: 'Operations Director',     initials: 'BG', email: 'bianca.george@actuateglobal.com' },
+      { name: 'Russ Burt',       role: 'Chief Finance Officer',   initials: 'RB', email: 'russ.burt@actuateglobal.com' },
+      { name: 'Hazel Owens',     role: 'Chief of Marketing',      initials: 'HO', email: 'hazel.owens@actuateglobal.com' },
+      { name: 'Matthew Roberts', role: 'Chief Executive Officer', initials: 'MR', email: 'matthew.roberts@actuateglobal.com' },
+    ],
+    raven:    [
+      { name: 'Mia Stuart',  role: 'Office & HR Coordinator', initials: 'MS', email: 'mia.stuart@raventrack.com' },
+      { name: 'Adam Rowley', role: 'Managing Director',       initials: 'AR', email: 'adam.rowley@raventrack.com' },
+    ],
+    prospero: [
+      { name: 'Claire Finneran', role: 'National Head of SEN', initials: 'CF', email: 'claire.finneran@prosperoteaching.com' },
+      { name: 'Mike Watts',      role: 'Associate Director',   initials: 'MW', email: 'mike.watts@prosperoteaching.com' },
+    ],
+    octa: [
+      { name: 'Claire Dando', role: 'HR Manager',               initials: 'CD', email: 'claire.dando@octapharma.com' },
+      { name: 'Jo Brierley',  role: 'Finance Business Partner', initials: 'JB', email: 'jo.brierley@octapharma.com' },
+      { name: 'Lisa Brogan',  role: 'Responsible Person',       initials: 'LB', email: 'lisa.brogan@octapharma.com' },
+      { name: 'Andy Walsh',   role: 'Deputy General Manager',   initials: 'AW', email: 'andy.walsh@octapharma.com' },
+    ],
+    test: [
+      { name: 'Sian Gwyther', role: 'Test Contact', initials: 'SG', email: 'sian.gwyther@betfred.com' },
+    ],
+  };
+
+  const CONTRACTOR_PURPOSES = ['Maintenance','IT Support','Delivery','Cleaning','Installation','Inspection','Other'];
+  const GENERAL_PURPOSES    = ['Viewing','Meeting','Enquiry','Interview','Event','Other'];
+
+  // ── Paste your Make webhook URL here ──────────────────────────────────────
+  const MAKE_WEBHOOK_URL = 'https://hook.eu1.make.com/4zhjy0wydoq58glkhx6e0s98w2mqfb3l';
+  // ──────────────────────────────────────────────────────────────────────────
+
+  function notifyHost(payload) {
+    if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL === 'YOUR_MAKE_WEBHOOK_URL_HERE') return;
+    fetch(MAKE_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(function(err) { console.warn('Webhook error:', err); });
+  }
+
+  let visitors = [];
+  let formState = {};
+  let countdownTimer = null;
+  let adminTaps = 0, adminTimer = null;
+
+  
+
+  function show(id) {
+    clearTimeout(countdownTimer);
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+    // Reset form scroll position when navigating away
+    var fb = document.getElementById('form-body');
+    if (fb) fb.scrollTop = 0;
+    var btn = document.getElementById('scroll-top-btn');
+    if (btn) btn.classList.remove('visible');
+    if (id === 'signout') {
+      renderSignoutList();
+      const si = document.getElementById('search-input');
+      if (si) si.value = '';
+    }
+    if (id === 'log') renderLog();
+  }
+
+  function startFlow(type) {
+    formState = { type, first:'', last:'', company:'', host:null, contact:null, purpose:'', phone:'', keys:'', gdpr:false };
+    show('form');
+    buildForm();
+  }
+
+  function buildForm() {
+    const t = formState.type;
+    const badges = { company:'Company Visitor', contractor:'Contractor', general:'General Visit' };
+    const titles = { company:'Visitor Sign In', contractor:'Contractor Sign In', general:'Visitor Sign In' };
+    document.getElementById('form-badge').textContent = badges[t];
+    document.getElementById('form-title').textContent = titles[t];
+    document.getElementById('notif-note').style.display = t === 'company' ? 'flex' : 'none';
+
+    let html = '<div class="form-row">'
+      + '<div class="field"><label>First Name *</label>'
+      + '<input type="text" id="f-first" placeholder="Jane" oninput="fs(\'first\',this.value)"></div>'
+      + '<div class="field"><label>Last Name *</label>'
+      + '<input type="text" id="f-last" placeholder="Smith" oninput="fs(\'last\',this.value)"></div>'
+      + '</div>';
+
+    if (t === 'company') {
+      html += '<div class="form-row">'
+        + '<div class="field"><label>Your Company *</label>'
+        + '<input type="text" id="f-company" placeholder="Acme Ltd" oninput="fs(\'company\',this.value)"></div>'
+        + '<div class="field"><label>Company Visiting *</label>'
+        + '<select id="f-host" onchange="onHostChange(this.value)">'
+        + '<option value="">Select a company...</option>'
+        + COMPANIES.map(c => '<option value="'+c.id+'">'+c.name+'</option>').join('')
+        + '</select></div></div>'
+        + '<div class="field full" id="contact-field" style="display:none;">'
+        + '<label>Your Host *</label>'
+        + '<div class="contacts-grid" id="contacts-grid"></div></div>';
+    } else if (t === 'contractor') {
+      html += '<div class="field full"><label>Company / Trading Name *</label>'
+        + '<input type="text" id="f-company" placeholder="ABC Contractors Ltd" oninput="fs(\'company\',this.value)"></div>'
+        + '<div class="form-row">'
+        + '<div class="field"><label>Phone Number *</label>'
+        + '<input type="tel" id="f-phone" placeholder="+44 7700 900000" oninput="fs(\'phone\',this.value)"></div>'
+        + '<div class="field"><label>Keys Taken</label>'
+        + '<input type="text" id="f-keys" placeholder="e.g. Master, Floor 3" oninput="fs(\'keys\',this.value)"></div>'
+        + '</div>'
+        + '<div class="field full"><label>Purpose of Visit *</label><div class="chips">'
+        + CONTRACTOR_PURPOSES.map(p => '<button class="chip" onclick="selectChip(this,\''+p+'\')">'+p+'</button>').join('')
+        + '</div></div>';
+    } else {
+      html += '<div class="field full"><label>Company / Organisation *</label>'
+        + '<input type="text" id="f-company" placeholder="Acme Ltd" oninput="fs(\'company\',this.value)"></div>'
+        + '<div class="field full"><label>Purpose of Visit *</label><div class="chips">'
+        + GENERAL_PURPOSES.map(p => '<button class="chip" onclick="selectChip(this,\''+p+'\')">'+p+'</button>').join('')
+        + '</div></div>';
+    }
+
+    html += '<div class="agreement">'
+      + '<div class="checkbox-wrap" id="gdpr-box" onclick="toggleGDPR()"><span class="check-icon">&#10003;</span></div>'
+      + '<div class="agreement-text">I confirm that my details may be recorded for building security and access purposes in accordance with GDPR. This data will be stored securely and not shared with third parties.</div>'
+      + '</div>';
+
+    document.getElementById('form-body').innerHTML = html;
+    attachFormScroll();
+    validate();
+  }
+
+  function fs(key, val) { formState[key] = val; validate(); }
+
+  function onHostChange(hostId) {
+    formState.host = hostId;
+    formState.contact = null;
+    const cf = document.getElementById('contact-field');
+    const cg = document.getElementById('contacts-grid');
+    if (!hostId) { cf.style.display = 'none'; validate(); return; }
+    cf.style.display = 'block';
+    const comp = COMPANIES.find(c => c.id === hostId);
+    cg.innerHTML = (CONTACTS[hostId] || []).map(function(c, i) {
+      return '<div class="contact-card" id="cc-'+i+'" onclick="selectContact('+i+')">'
+        + '<div class="contact-avatar">'+c.initials+'</div>'
+        + '<div style="flex:1"><div class="contact-name">'+c.name+'</div>'
+        + '<div class="contact-role">'+c.role+'</div></div>'
+        + '<div class="contact-floor">'+(comp ? comp.floor : '')+'</div></div>';
+    }).join('');
+    validate();
+  }
+
+  function selectContact(i) {
+    formState.contact = i;
+    document.querySelectorAll('.contact-card').forEach(function(c, idx) {
+      c.classList.toggle('selected', idx === i);
+    });
+    validate();
+  }
+
+  function selectChip(el, val) {
+    document.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('selected'); });
+    el.classList.add('selected');
+    formState.purpose = val;
+    validate();
+  }
+
+  function toggleGDPR() {
+    formState.gdpr = !formState.gdpr;
+    document.getElementById('gdpr-box').classList.toggle('checked', formState.gdpr);
+    validate();
+  }
+
+  function validate() {
+    var s = formState;
+    var ok = s.first.trim() && s.last.trim() && s.gdpr;
+    if (s.type === 'company')    ok = ok && s.host && s.contact !== null && s.company.trim();
+    if (s.type === 'contractor') ok = ok && s.purpose && s.company.trim() && s.phone.trim();
+    if (s.type === 'general')    ok = ok && s.purpose && s.company.trim();
+    document.getElementById('btn-submit').classList.toggle('ready', !!ok);
+  }
+
+  function submitForm() {
+    var s = formState;
+    var now = new Date();
+    var timeStr = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+    var comp    = s.host ? COMPANIES.find(function(c){ return c.id === s.host; }) : null;
+    var contact = (s.host && s.contact !== null) ? (CONTACTS[s.host] || [])[s.contact] : null;
+
+    visitors.unshift({
+      id: Date.now(),
+      type: s.type,
+      name: s.first.trim() + ' ' + s.last.trim(),
+      company: s.company.trim(),
+      host: comp ? comp.name : '',
+      contact: contact ? contact.name : '',
+      purpose: s.purpose || (s.type === 'company' ? 'Meeting' : ''),
+      phone: s.phone.trim(),
+      keys: s.keys.trim(),
+      signInTime: timeStr,
+      signOutTime: null,
+    });
+
+    // Fire Make webhook for company visitors with a named host
+    if (s.type === 'company' && contact) {
+      var hostContact = (CONTACTS[s.host] || [])[s.contact];
+      notifyHost({
+        visitor_name:    s.first.trim() + ' ' + s.last.trim(),
+        visitor_company: s.company.trim(),
+        host_name:       contact.name,
+        host_email:      hostContact ? hostContact.email : '',
+        host_company:    comp ? comp.name : '',
+        host_floor:      comp ? comp.floor : '',
+        sign_in_time:    timeStr,
+      });
+    }
+
+    var subMap = {
+      company:    'Visiting ' + (comp ? comp.name : '') + (contact ? ' \u00b7 ' + contact.name : ''),
+      contractor: s.company + ' \u00b7 ' + s.purpose,
+      general:    s.purpose,
+    };
+
+    document.getElementById('suc-name').textContent   = s.first.trim();
+    document.getElementById('suc-sub').textContent    = subMap[s.type] || '';
+    document.getElementById('suc-detail').textContent = 'Signed in at ' + timeStr;
+    document.getElementById('suc-notif').classList.toggle('hidden', s.type !== 'company');
+
+    show('success');
+    tick(5, 'countdown', 'welcome');
+  }
+
+  function renderSignoutList() {
+    var q = (document.getElementById('search-input') ? document.getElementById('search-input').value : '').toLowerCase();
+    var active = visitors.filter(function(v) {
+      return !v.signOutTime && (v.name.toLowerCase().includes(q) || v.company.toLowerCase().includes(q));
+    });
+    var el = document.getElementById('signout-list');
+    if (!active.length) {
+      el.innerHTML = '<div class="empty-state"><span>&#10003;</span>No visitors currently signed in.</div>';
+      return;
+    }
+    var typeLabel = { company:'Company', contractor:'Contractor', general:'General' };
+    el.innerHTML = active.map(function(v) {
+      var initials = v.name.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('');
+      var meta = (v.company || typeLabel[v.type]) + (v.host ? ' \u00b7 ' + v.host : '');
+      return '<div class="visitor-row" onclick="showConfirm('+v.id+')">'
+        + '<div class="visitor-avatar">'+initials+'</div>'
+        + '<div class="visitor-info"><div class="visitor-name">'+v.name+'</div>'
+        + '<div class="visitor-meta">'+meta+'</div></div>'
+        + '<div class="visitor-time-in">In '+v.signInTime+'</div></div>';
+    }).join('');
+  }
+
+  var pendingSignOutId = null;
+
+  function showConfirm(id) {
+    var v = visitors.find(function(x){ return x.id === id; });
+    if (!v) return;
+    pendingSignOutId = id;
+    var initials = v.name.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('');
+    var typeLabel = { company:'Company', contractor:'Contractor', general:'General' };
+    var meta = (v.company || typeLabel[v.type]) + (v.host ? ' · ' + v.host : '');
+    document.getElementById('confirm-avatar').textContent = initials;
+    document.getElementById('confirm-name').textContent = v.name;
+    document.getElementById('confirm-meta').textContent = meta;
+    show('signout-confirm');
+  }
+
+  function confirmSignOut() {
+    var v = visitors.find(function(x){ return x.id === pendingSignOutId; });
+    if (!v) return;
+    var now = new Date();
+    v.signOutTime = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+    document.getElementById('conf-name').textContent = v.name.split(' ')[0];
+    document.getElementById('conf-time').textContent = 'Signed out at ' + v.signOutTime;
+    pendingSignOutId = null;
+    show('confirmed');
+    tick(5, 'conf-countdown', 'welcome');
+  }
+
+  function renderLog() {
+    var el = document.getElementById('log-body');
+    if (!visitors.length) {
+      el.innerHTML = '<div class="empty-state" style="margin-top:80px;"><span>&#128203;</span>No visitors recorded today.</div>';
+      return;
+    }
+    var typeLabel = { company:'Company', contractor:'Contractor', general:'General' };
+    el.innerHTML = '<table class="log-table"><thead><tr>'
+      + '<th>Time In</th><th>Name</th><th>Company</th><th>Host / Purpose</th><th>Phone</th><th>Keys</th><th>Type</th><th>Status</th>'
+      + '</tr></thead><tbody>'
+      + visitors.map(function(v) {
+          var hostPurpose = v.host ? (v.host + (v.contact ? ' \u00b7 ' + v.contact : '')) : (v.purpose || '\u2014');
+          var status = v.signOutTime
+            ? '<span class="tag out">Out '+v.signOutTime+'</span>'
+            : '<span style="color:var(--muted);font-size:13px;font-weight:300;">On site</span>';
+          return '<tr><td>'+v.signInTime+'</td><td>'+v.name+'</td><td>'+(v.company||'\u2014')+'</td>'
+            + '<td>'+hostPurpose+'</td>'
+            + '<td>'+(v.phone || '\u2014')+'</td>'
+            + '<td>'+(v.keys || '\u2014')+'</td>'
+            + '<td><span class="tag '+v.type+'">'+typeLabel[v.type]+'</span></td>'
+            + '<td>'+status+'</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+  }
+
+  function tick(n, elId, goTo) {
+    var el = document.getElementById(elId);
+    if (el) el.textContent = 'Returning in ' + n + '...';
+    if (n === 0) { show(goTo); return; }
+    countdownTimer = setTimeout(function(){ tick(n-1, elId, goTo); }, 1000);
+  }
+
+
+
+  function scrollFormTop() {
+    var fb = document.getElementById('form-body');
+    if (fb) fb.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function attachFormScroll() {
+    var fb = document.getElementById('form-body');
+    if (!fb) return;
+    fb.addEventListener('scroll', function() {
+      var btn = document.getElementById('scroll-top-btn');
+      if (!btn) return;
+      btn.classList.toggle('visible', fb.scrollTop > 80);
+    });
+  }
+  attachFormScroll();
+
+  document.getElementById('admin-tap').addEventListener('touchend', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    adminTaps++;
+    clearTimeout(adminTimer);
+    if (adminTaps >= 5) { adminTaps = 0; show('log'); return; }
+    adminTimer = setTimeout(function(){ adminTaps = 0; }, 2000);
+  });
+</script>
+</body>
+</html>
