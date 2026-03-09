@@ -1314,6 +1314,20 @@
     URL.revokeObjectURL(url);
   }
 
+  // Auto export CSV at 5:30pm Monday to Friday
+  function checkAutoExport() {
+    var now = new Date();
+    var day = now.getDay(); // 0=Sun, 6=Sat
+    var hours = now.getHours();
+    var minutes = now.getMinutes();
+    if (day >= 1 && day <= 5 && hours === 17 && minutes === 0) {
+      if (visitors.length) {
+        exportCSV();
+      }
+    }
+  }
+  setInterval(checkAutoExport, 60000); // check every minute
+
   // Auto lock after 5 minutes of inactivity
   var inactivityTimer = null;
   var INACTIVITY_TIMEOUT = 5 * 60 * 1000;
