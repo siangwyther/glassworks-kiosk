@@ -511,6 +511,40 @@
   .tag.general    { background: rgba(136,136,128,0.12); color: var(--muted); }
   .tag.out        { background: rgba(74,124,89,0.15); color: var(--success); }
 
+  .pin-dots {
+    display: flex; gap: 16px; margin-bottom: 12px;
+  }
+  .pin-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border);
+    transition: all 0.15s;
+  }
+  .pin-dot.filled { background: var(--ink); border-color: var(--ink); }
+  .pin-error {
+    font-size: 13px; color: #C0506A; font-weight: 400;
+    margin-bottom: 28px; opacity: 0;
+    transition: opacity 0.2s;
+    min-height: 20px;
+  }
+  .pin-error.visible { opacity: 1; }
+  .pin-pad {
+    display: grid; grid-template-columns: repeat(3, 80px);
+    gap: 12px;
+  }
+  .pin-key {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: rgba(255,255,255,0.75);
+    border: 1px solid var(--border);
+    font-family: 'Raleway', sans-serif;
+    font-size: 26px; font-weight: 300; color: var(--ink);
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pin-key:active { background: var(--ink); color: white; transform: scale(0.95); }
+  .pin-key-clear { font-size: 20px; }
+  .pin-key-cancel { font-size: 18px; background: rgba(196,168,184,0.15); }
+
   .roof-warning {
     background: rgba(196,168,184,0.15);
     border: 1px solid rgba(196,168,184,0.4);
@@ -645,6 +679,37 @@
   <div class="success-sub">You have been signed out.</div>
   <div class="success-detail" id="conf-time" style="margin-bottom:48px;"></div>
   <div class="countdown" id="conf-countdown">Returning in 5...</div>
+</div>
+
+
+<!-- ADMIN PIN -->
+<div class="screen" id="screen-pin">
+  <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:48px;">
+    <div class="welcome-badge" style="margin-bottom:24px;">Admin Access</div>
+    <div class="success-title" style="font-size:40px; margin-bottom:8px;">Enter PIN</div>
+    <div class="success-sub" style="margin-bottom:32px;">This area is restricted to authorised staff only.</div>
+    <div class="pin-dots" id="pin-dots">
+      <span class="pin-dot" id="dot-0"></span>
+      <span class="pin-dot" id="dot-1"></span>
+      <span class="pin-dot" id="dot-2"></span>
+      <span class="pin-dot" id="dot-3"></span>
+    </div>
+    <div class="pin-error" id="pin-error">Incorrect PIN. Please try again.</div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pinPress(1)">1</button>
+      <button class="pin-key" onclick="pinPress(2)">2</button>
+      <button class="pin-key" onclick="pinPress(3)">3</button>
+      <button class="pin-key" onclick="pinPress(4)">4</button>
+      <button class="pin-key" onclick="pinPress(5)">5</button>
+      <button class="pin-key" onclick="pinPress(6)">6</button>
+      <button class="pin-key" onclick="pinPress(7)">7</button>
+      <button class="pin-key" onclick="pinPress(8)">8</button>
+      <button class="pin-key" onclick="pinPress(9)">9</button>
+      <button class="pin-key pin-key-clear" onclick="pinClear()">&#8592;</button>
+      <button class="pin-key" onclick="pinPress(0)">0</button>
+      <button class="pin-key pin-key-cancel" onclick="show('welcome')">&#10005;</button>
+    </div>
+  </div>
 </div>
 
 
@@ -1058,12 +1123,57 @@
   }
   attachFormScroll();
 
+  // PIN code
+  const ADMIN_PIN = '1472';
+  var pinEntry = '';
+
+  function showPin() {
+    pinEntry = '';
+    updatePinDots();
+    document.getElementById('pin-error').classList.remove('visible');
+    show('pin');
+  }
+
+  function pinPress(n) {
+    if (pinEntry.length >= 4) return;
+    pinEntry += n;
+    updatePinDots();
+    if (pinEntry.length === 4) {
+      setTimeout(function() {
+        if (pinEntry === ADMIN_PIN) {
+          pinEntry = '';
+          updatePinDots();
+          show('log');
+        } else {
+          document.getElementById('pin-error').classList.add('visible');
+          setTimeout(function() {
+            pinEntry = '';
+            updatePinDots();
+            document.getElementById('pin-error').classList.remove('visible');
+          }, 1200);
+        }
+      }, 150);
+    }
+  }
+
+  function pinClear() {
+    pinEntry = pinEntry.slice(0, -1);
+    updatePinDots();
+    document.getElementById('pin-error').classList.remove('visible');
+  }
+
+  function updatePinDots() {
+    for (var i = 0; i < 4; i++) {
+      document.getElementById('dot-' + i).classList.toggle('filled', i < pinEntry.length);
+    }
+  }
+
   document.getElementById('admin-tap').addEventListener('touchend', function(e) {
     e.preventDefault();
     e.stopPropagation();
     adminTaps++;
     clearTimeout(adminTimer);
-    if (adminTaps >= 5) { adminTaps = 0; show('log'); return; }
+    if (adminTaps >= 5) { adminTaps = 0; showPin(); return; }
     adminTimer = setTimeout(function(){ adminTaps = 0; }, 2000);
   });
 </script>
