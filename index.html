@@ -473,6 +473,49 @@
 
   .log-body { flex: 1; overflow-y: auto; }
 
+  .log-tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: #F2F4F8;
+    flex-shrink: 0;
+  }
+  .log-tab {
+    flex: 1; padding: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted);
+    background: none; border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer; transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .log-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+  .history-date-group { }
+  .history-date-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    background: #F2F4F8;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .history-date-label {
+    font-size: 13px; font-weight: 500; color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+  .history-date-count {
+    font-size: 11px; font-weight: 300; color: var(--muted);
+  }
+  .history-date-arrow {
+    font-size: 12px; color: var(--muted);
+    transition: transform 0.2s;
+  }
+  .history-date-group.open .history-date-arrow { transform: rotate(180deg); }
+  .history-entries { display: none; }
+  .history-date-group.open .history-entries { display: block; }
+
   .log-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .log-table th {
     text-align: left;
@@ -716,11 +759,15 @@
 <!-- ADMIN LOG -->
 <div class="screen" id="screen-log">
   <div class="log-header">
-    <div class="log-header-title">Visitor Log &#8212; Today</div>
+    <div class="log-header-title">Visitor Log</div>
     <div style="display:flex;gap:12px;align-items:center;">
       <button class="back-btn" onclick="exportCSV()">&#8595; Export CSV</button>
       <button class="back-btn" onclick="show('welcome')">&#8592; Exit</button>
     </div>
+  </div>
+  <div class="log-tabs">
+    <button class="log-tab active" id="tab-today" onclick="switchTab('today')">Today</button>
+    <button class="log-tab" id="tab-history" onclick="switchTab('history')">History</button>
   </div>
   <div class="log-body" id="log-body"></div>
 </div>
@@ -810,7 +857,7 @@
       const si = document.getElementById('search-input');
       if (si) si.value = '';
     }
-    if (id === 'log') renderLog();
+    if (id === 'log') { currentTab = 'today'; document.getElementById('tab-today').classList.add('active'); document.getElementById('tab-history').classList.remove('active'); renderLog(); }
   }
 
   function startFlow(type) {
@@ -956,6 +1003,7 @@
 
     visitors.unshift({
       id: Date.now(),
+      date: new Date().toLocaleDateString('en-GB'),
       type: s.type,
       name: s.first.trim() + ' ' + s.last.trim(),
       company: s.company.trim(),
@@ -1075,17 +1123,22 @@
     tick(5, 'conf-countdown', 'welcome');
   }
 
-  function renderLog() {
-    var el = document.getElementById('log-body');
-    if (!visitors.length) {
-      el.innerHTML = '<div class="empty-state" style="margin-top:80px;"><span>&#128203;</span>No visitors recorded today.</div>';
-      return;
-    }
-    var typeLabel = { company:'Company', contractor:'Contractor', general:'General' };
-    el.innerHTML = '<table class="log-table"><thead><tr>'
+  var currentTab = 'today';
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-today').classList.toggle('active', tab === 'today');
+    document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+    if (tab === 'today') renderLog();
+    else renderHistory();
+  }
+
+  function buildTable(list) {
+    if (!list.length) return '<div class="empty-state" style="margin-top:40px;"><span>\u{1F4CB}</span>No entries.</div>';
+    return '<table class="log-table"><thead><tr>'
       + '<th>Time In</th><th>Name</th><th>Company</th><th>Host / Purpose</th><th>Phone</th><th>Keys</th><th>Roof</th><th>Type</th><th>Status</th>'
       + '</tr></thead><tbody>'
-      + visitors.map(function(v) {
+      + list.map(function(v) {
           var hostPurpose = v.host ? (v.host + (v.contact ? ' \u00b7 ' + v.contact : '')) : (v.purpose || '\u2014');
           var status = v.signOutTime
             ? '<span class="tag out">Out '+v.signOutTime+'</span>'
@@ -1095,11 +1148,62 @@
             + '<td>'+(v.phone || '\u2014')+'</td>'
             + '<td>'+(v.keys || '\u2014')+'</td>'
             + '<td>'+(v.roofAccess === true ? 'Yes' : v.roofAccess === false ? 'No' : '\u2014')+'</td>'
-            + '<td><span class="tag '+v.type+'">'+typeLabel[v.type]+'</span></td>'
+            + '<td><span class="tag '+v.type+'">'+v.type.charAt(0).toUpperCase()+v.type.slice(1)+'</span></td>'
             + '<td>'+status+'</td></tr>';
         }).join('')
       + '</tbody></table>';
   }
+
+  function renderLog() {
+    var today = new Date().toLocaleDateString('en-GB');
+    var el = document.getElementById('log-body');
+    var todayVisitors = visitors.filter(function(v) { return v.date === today; });
+    if (!todayVisitors.length) {
+      el.innerHTML = '<div class="empty-state" style="margin-top:80px;"><span>&#128203;</span>No visitors recorded today.</div>';
+      return;
+    }
+    el.innerHTML = buildTable(todayVisitors);
+  }
+
+  function renderHistory() {
+    var el = document.getElementById('log-body');
+    if (!visitors.length) {
+      el.innerHTML = '<div class="empty-state" style="margin-top:80px;"><span>&#128203;</span>No visitor history yet.</div>';
+      return;
+    }
+    var groups = {};
+    visitors.forEach(function(v) {
+      var d = v.date || 'Unknown';
+      if (!groups[d]) groups[d] = [];
+      groups[d].push(v);
+    });
+    var dates = Object.keys(groups).sort(function(a, b) {
+      var pa = a.split('/').reverse().join('');
+      var pb = b.split('/').reverse().join('');
+      return pb.localeCompare(pa);
+    });
+    el.innerHTML = dates.map(function(date) {
+      var entries = groups[date];
+      var id = 'hg-' + date.replace(/[/]/g, '-');
+      return '<div class="history-date-group" id="'+id+'">'
+        + '<div class="history-date-header" onclick="toggleDateGroup(\'' + id + '\')">'
+        + '<div>'
+        + '<div class="history-date-label">'+date+'</div>'
+        + '<div class="history-date-count">'+entries.length+' visitor'+(entries.length !== 1 ? 's' : '')+'</div>'
+        + '</div>'
+        + '<span class="history-date-arrow">&#9660;</span>'
+        + '</div>'
+        + '<div class="history-entries">'+buildTable(entries)+'</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function toggleDateGroup(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('open');
+  }
+
+  function renderLog_old() {}
 
   function tick(n, elId, goTo) {
     var el = document.getElementById(elId);
