@@ -492,6 +492,21 @@
   }
   .log-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
 
+  .log-search-wrap {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: #F2F4F8;
+    flex-shrink: 0;
+  }
+  .log-search-wrap input {
+    font-size: 14px; font-weight: 300;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 10px 18px;
+    width: 100%;
+  }
+
   .history-date-group { }
   .history-date-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -769,6 +784,9 @@
     <button class="log-tab active" id="tab-today" onclick="switchTab('today')">Today</button>
     <button class="log-tab" id="tab-history" onclick="switchTab('history')">History</button>
   </div>
+  <div class="log-search-wrap">
+    <input type="text" id="log-search" placeholder="Search by name or company..." oninput="onLogSearch()">
+  </div>
   <div class="log-body" id="log-body"></div>
 </div>
 
@@ -857,7 +875,7 @@
       const si = document.getElementById('search-input');
       if (si) si.value = '';
     }
-    if (id === 'log') { currentTab = 'today'; document.getElementById('tab-today').classList.add('active'); document.getElementById('tab-history').classList.remove('active'); renderLog(); }
+    if (id === 'log') { currentTab = 'today'; document.getElementById('tab-today').classList.add('active'); document.getElementById('tab-history').classList.remove('active'); var ls = document.getElementById('log-search'); if (ls) ls.value = ''; renderLog(); }
   }
 
   function startFlow(type) {
@@ -1133,6 +1151,27 @@
     else renderHistory();
   }
 
+  function onLogSearch() {
+    if (currentTab === 'today') renderLog();
+    else renderHistory();
+  }
+
+  function getLogQuery() {
+    var el = document.getElementById('log-search');
+    return el ? el.value.toLowerCase().trim() : '';
+  }
+
+  function filterVisitors(list) {
+    var q = getLogQuery();
+    if (!q) return list;
+    return list.filter(function(v) {
+      return v.name.toLowerCase().includes(q)
+        || (v.company || '').toLowerCase().includes(q)
+        || (v.host || '').toLowerCase().includes(q)
+        || (v.purpose || '').toLowerCase().includes(q);
+    });
+  }
+
   function buildTable(list) {
     if (!list.length) return '<div class="empty-state" style="margin-top:40px;"><span>\u{1F4CB}</span>No entries.</div>';
     return '<table class="log-table"><thead><tr>'
@@ -1157,9 +1196,10 @@
   function renderLog() {
     var today = new Date().toLocaleDateString('en-GB');
     var el = document.getElementById('log-body');
-    var todayVisitors = visitors.filter(function(v) { return v.date === today; });
+    var todayVisitors = filterVisitors(visitors.filter(function(v) { return v.date === today; }));
     if (!todayVisitors.length) {
-      el.innerHTML = '<div class="empty-state" style="margin-top:80px;"><span>&#128203;</span>No visitors recorded today.</div>';
+      var q = getLogQuery();
+      el.innerHTML = '<div class="empty-state" style="margin-top:80px;"><span>&#128203;</span>' + (q ? 'No results for "' + q + '".' : 'No visitors recorded today.') + '</div>';
       return;
     }
     el.innerHTML = buildTable(todayVisitors);
@@ -1182,10 +1222,13 @@
       var pb = b.split('/').reverse().join('');
       return pb.localeCompare(pa);
     });
-    el.innerHTML = dates.map(function(date) {
-      var entries = groups[date];
+    var q = getLogQuery();
+    var html = dates.map(function(date) {
+      var entries = filterVisitors(groups[date]);
+      if (!entries.length) return '';
       var id = 'hg-' + date.replace(/[/]/g, '-');
-      return '<div class="history-date-group" id="'+id+'">'
+      var isOpen = !!q; // auto-expand when searching
+      return '<div class="history-date-group' + (isOpen ? ' open' : '') + '" id="'+id+'">'
         + '<div class="history-date-header" onclick="toggleDateGroup(\'' + id + '\')">'
         + '<div>'
         + '<div class="history-date-label">'+date+'</div>'
@@ -1196,6 +1239,7 @@
         + '<div class="history-entries">'+buildTable(entries)+'</div>'
         + '</div>';
     }).join('');
+    el.innerHTML = html || '<div class="empty-state" style="margin-top:80px;"><span>&#128203;</span>No results for "' + q + '".</div>';
   }
 
   function toggleDateGroup(id) {
