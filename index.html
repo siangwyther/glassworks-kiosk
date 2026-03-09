@@ -510,6 +510,27 @@
   .tag.general    { background: rgba(136,136,128,0.12); color: var(--muted); }
   .tag.out        { background: rgba(74,124,89,0.15); color: var(--success); }
 
+  .roof-warning {
+    background: rgba(196,168,184,0.15);
+    border: 1px solid rgba(196,168,184,0.4);
+    border-radius: 12px;
+    padding: 18px 22px;
+  }
+  .roof-warning-title {
+    font-size: 13px; font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+  }
+  .roof-warning-list {
+    margin: 0; padding-left: 18px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .roof-warning-list li {
+    font-size: 13px; font-weight: 300;
+    color: var(--ink); line-height: 1.5;
+  }
+
   .admin-tap {
     position: fixed; bottom: 0; right: 0;
     width: 80px; height: 80px;
@@ -678,15 +699,25 @@
 
   // ── Paste your Make webhook URL here ──────────────────────────────────────
   const MAKE_WEBHOOK_URL = 'https://hook.eu1.make.com/4zhjy0wydoq58glkhx6e0s98w2mqfb3l';
+  // ── Paste your log webhook URL here (for sign in / sign out logging) ──────
+  const MAKE_LOG_WEBHOOK_URL = 'YOUR_LOG_WEBHOOK_URL_HERE';
   // ──────────────────────────────────────────────────────────────────────────
 
-  function notifyHost(payload) {
-    if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL === 'YOUR_MAKE_WEBHOOK_URL_HERE') return;
-    fetch(MAKE_WEBHOOK_URL, {
+  function fireWebhook(url, payload) {
+    if (!url || url === 'YOUR_LOG_WEBHOOK_URL_HERE' || url === 'YOUR_MAKE_WEBHOOK_URL_HERE') return;
+    fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }).catch(function(err) { console.warn('Webhook error:', err); });
+  }
+
+  function notifyHost(payload) {
+    fireWebhook(MAKE_WEBHOOK_URL, payload);
+  }
+
+  function logVisit(payload) {
+    fireWebhook(MAKE_LOG_WEBHOOK_URL, payload);
   }
 
   let visitors = [];
@@ -714,7 +745,7 @@
   }
 
   function startFlow(type) {
-    formState = { type, first:'', last:'', company:'', host:null, contact:null, purpose:'', phone:'', keys:'', gdpr:false };
+    formState = { type, first:'', last:'', company:'', host:null, contact:null, purpose:'', phone:'', keys:'', roofAccess:null, gdpr:false };
     show('form');
     buildForm();
   }
@@ -757,7 +788,20 @@
         + '</div>'
         + '<div class="field full"><label>Purpose of Visit *</label><div class="chips">'
         + CONTRACTOR_PURPOSES.map(p => '<button class="chip" onclick="selectChip(this,\''+p+'\')">'+p+'</button>').join('')
-        + '</div></div>';
+        + '</div></div>'
+        + '<div class="field full"><label>Roof Access Required? *</label><div class="chips">'
+        + '<button class="chip" id="roof-no" onclick="selectRoof(this,false)">No</button>'
+        + '<button class="chip" id="roof-yes" onclick="selectRoof(this,true)">Yes</button>'
+        + '</div></div>'
+        + '<div class="field full" id="roof-fields" style="display:none;">'
+        + '<div class="roof-warning">'
+        + '<div class="roof-warning-title">&#9888; Roof Access Notice</div>'
+        + '<ul class="roof-warning-list">'
+        + '<li>Unauthorised access is prohibited</li>'
+        + '<li>Failure to sign out may result in disciplinary action</li>'
+        + '<li>Close and secure the roof hatch after use</li>'
+        + '<li>Report any hazards, damage or unsafe conditions immediately to Facilities Management</li>'
+        + '</ul></div></div>';
     } else {
       html += '<div class="field full"><label>Company / Organisation *</label>'
         + '<input type="text" id="f-company" placeholder="Acme Ltd" oninput="fs(\'company\',this.value)"></div>'
@@ -817,11 +861,19 @@
     validate();
   }
 
+  function selectRoof(el, val) {
+    formState.roofAccess = val;
+    document.querySelectorAll('#roof-yes, #roof-no').forEach(function(c) { c.classList.remove('selected'); });
+    el.classList.add('selected');
+    document.getElementById('roof-fields').style.display = val ? 'block' : 'none';
+    validate();
+  }
+
   function validate() {
     var s = formState;
     var ok = s.first.trim() && s.last.trim() && s.gdpr;
     if (s.type === 'company')    ok = ok && s.host && s.contact !== null && s.company.trim();
-    if (s.type === 'contractor') ok = ok && s.purpose && s.company.trim() && s.phone.trim();
+    if (s.type === 'contractor') ok = ok && s.purpose && s.company.trim() && s.phone.trim() && s.roofAccess !== null;
     if (s.type === 'general')    ok = ok && s.purpose && s.company.trim();
     document.getElementById('btn-submit').classList.toggle('ready', !!ok);
   }
@@ -843,11 +895,14 @@
       purpose: s.purpose || (s.type === 'company' ? 'Meeting' : ''),
       phone: s.phone.trim(),
       keys: s.keys.trim(),
+      roofAccess: s.roofAccess,
       signInTime: timeStr,
       signOutTime: null,
     });
 
-    // Fire Make webhook for company visitors with a named host
+    var visitId = visitors[0].id;
+
+    // Notify host for company visitors
     if (s.type === 'company' && contact) {
       var hostContact = (CONTACTS[s.host] || [])[s.contact];
       notifyHost({
@@ -860,6 +915,23 @@
         sign_in_time:    timeStr,
       });
     }
+
+    // Log sign in for all visitor types
+    logVisit({
+      event:           'sign_in',
+      visit_id:        visitId,
+      visitor_type:    s.type,
+      visitor_name:    s.first.trim() + ' ' + s.last.trim(),
+      visitor_company: s.company.trim(),
+      phone:           s.phone.trim(),
+      keys:            s.keys.trim(),
+      roof_access:     s.roofAccess ? 'Yes' : 'No',
+      host_name:       contact ? contact.name : '',
+      host_company:    comp ? comp.name : '',
+      host_floor:      comp ? comp.floor : '',
+      purpose:         s.purpose || (s.type === 'company' ? 'Meeting' : ''),
+      sign_in_time:    timeStr,
+    });
 
     var subMap = {
       company:    'Visiting ' + (comp ? comp.name : '') + (contact ? ' \u00b7 ' + contact.name : ''),
@@ -920,6 +992,15 @@
     v.signOutTime = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
     document.getElementById('conf-name').textContent = v.name.split(' ')[0];
     document.getElementById('conf-time').textContent = 'Signed out at ' + v.signOutTime;
+
+    // Log sign out
+    logVisit({
+      event:          'sign_out',
+      visit_id:       v.id,
+      visitor_name:   v.name,
+      sign_out_time:  v.signOutTime,
+    });
+
     pendingSignOutId = null;
     show('confirmed');
     tick(5, 'conf-countdown', 'welcome');
@@ -933,7 +1014,7 @@
     }
     var typeLabel = { company:'Company', contractor:'Contractor', general:'General' };
     el.innerHTML = '<table class="log-table"><thead><tr>'
-      + '<th>Time In</th><th>Name</th><th>Company</th><th>Host / Purpose</th><th>Phone</th><th>Keys</th><th>Type</th><th>Status</th>'
+      + '<th>Time In</th><th>Name</th><th>Company</th><th>Host / Purpose</th><th>Phone</th><th>Keys</th><th>Roof</th><th>Type</th><th>Status</th>'
       + '</tr></thead><tbody>'
       + visitors.map(function(v) {
           var hostPurpose = v.host ? (v.host + (v.contact ? ' \u00b7 ' + v.contact : '')) : (v.purpose || '\u2014');
@@ -944,6 +1025,7 @@
             + '<td>'+hostPurpose+'</td>'
             + '<td>'+(v.phone || '\u2014')+'</td>'
             + '<td>'+(v.keys || '\u2014')+'</td>'
+            + '<td>'+(v.roofAccess === true ? 'Yes' : v.roofAccess === false ? 'No' : '\u2014')+'</td>'
             + '<td><span class="tag '+v.type+'">'+typeLabel[v.type]+'</span></td>'
             + '<td>'+status+'</td></tr>';
         }).join('')
