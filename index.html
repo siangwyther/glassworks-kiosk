@@ -717,7 +717,10 @@
 <div class="screen" id="screen-log">
   <div class="log-header">
     <div class="log-header-title">Visitor Log &#8212; Today</div>
-    <button class="back-btn" onclick="show('welcome')">&#8592; Exit</button>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <button class="back-btn" onclick="exportCSV()">&#8595; Export CSV</button>
+      <button class="back-btn" onclick="show('welcome')">&#8592; Exit</button>
+    </div>
   </div>
   <div class="log-body" id="log-body"></div>
 </div>
@@ -1122,6 +1125,65 @@
     });
   }
   attachFormScroll();
+
+  // Export visitor log as CSV
+  function exportCSV() {
+    if (!visitors.length) return;
+    var headers = ['Date','Time In','Time Out','Name','Company','Type','Host','Purpose','Phone','Keys','Roof Access'];
+    var rows = visitors.map(function(v) {
+      var today = new Date().toLocaleDateString('en-GB');
+      return [
+        today,
+        v.signInTime,
+        v.signOutTime || '',
+        v.name,
+        v.company || '',
+        v.type,
+        v.host ? (v.host + (v.contact ? ' - ' + v.contact : '')) : '',
+        v.purpose || '',
+        v.phone || '',
+        v.keys || '',
+        v.roofAccess === true ? 'Yes' : v.roofAccess === false ? 'No' : ''
+      ].map(function(val) {
+        // Wrap in quotes and escape any existing quotes
+        return '"' + String(val).replace(/"/g, '""') + '"';
+      });
+    });
+
+    var csv = [headers.join(',')]
+      .concat(rows.map(function(r) { return r.join(','); }))
+      .join('\n');
+
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    a.href = url;
+    a.download = 'glassworks-visitors-' + today + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Auto lock after 5 minutes of inactivity
+  var inactivityTimer = null;
+  var INACTIVITY_TIMEOUT = 5 * 60 * 1000;
+
+  function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    var current = document.querySelector('.screen.active');
+    if (current && current.id === 'screen-welcome') return;
+    inactivityTimer = setTimeout(function() {
+      show('welcome');
+    }, INACTIVITY_TIMEOUT);
+  }
+
+  ['touchstart', 'touchend', 'click', 'keydown'].forEach(function(evt) {
+    document.addEventListener(evt, resetInactivityTimer, true);
+  });
+
+  resetInactivityTimer();
 
   // PIN code
   const ADMIN_PIN = '1472';
