@@ -834,7 +834,7 @@
   // ── Paste your Make webhook URL here ──────────────────────────────────────
   const MAKE_WEBHOOK_URL = 'https://hook.eu1.make.com/4zhjy0wydoq58glkhx6e0s98w2mqfb3l';
   // ── Paste your log webhook URL here (for sign in / sign out logging) ──────
-  const MAKE_LOG_WEBHOOK_URL = 'https://hook.eu1.make.com/vpq86v91m63ig5dxx2jmxurayp09lrd9';
+  const MAKE_LOG_WEBHOOK_URL = 'YOUR_LOG_WEBHOOK_URL_HERE';
   // ──────────────────────────────────────────────────────────────────────────
 
   function fireWebhook(url, payload) {
@@ -854,7 +854,21 @@
     fireWebhook(MAKE_LOG_WEBHOOK_URL, payload);
   }
 
+  function saveVisitors() {
+    try { localStorage.setItem('gw_visitors', JSON.stringify(visitors)); } catch(e) {}
+  }
+  function loadVisitors() {
+    try {
+      var stored = localStorage.getItem('gw_visitors');
+      if (stored) {
+        var parsed = JSON.parse(stored);
+        // Only keep today's visitors in memory; keep all for history
+        visitors = parsed;
+      }
+    } catch(e) {}
+  }
   let visitors = [];
+  loadVisitors();
   let formState = {};
   let countdownTimer = null;
   let adminTaps = 0, adminTimer = null;
@@ -1070,6 +1084,7 @@
       sign_in_time:    timeStr,
     });
 
+    saveVisitors();
     var subMap = {
       company:    'Visiting ' + (comp ? comp.name : '') + (contact ? ' \u00b7 ' + contact.name : ''),
       contractor: s.company + ' \u00b7 ' + s.purpose,
@@ -1138,6 +1153,7 @@
       sign_out_time:  v.signOutTime,
     });
 
+    saveVisitors();
     pendingSignOutId = null;
     show('confirmed');
     tick(5, 'conf-countdown', 'welcome');
