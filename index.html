@@ -1044,6 +1044,7 @@
         visitor_name:    s.first.trim() + ' ' + s.last.trim(),
         visitor_company: s.company.trim(),
         host_name:       contact.name,
+        host_first_name: contact.name.split(' ')[0],
         host_email:      hostContact ? hostContact.email : '',
         host_company:    comp ? comp.name : '',
         host_floor:      comp ? comp.floor : '',
