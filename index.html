@@ -1042,6 +1042,7 @@
       var hostContact = (CONTACTS[s.host] || [])[s.contact];
       notifyHost({
         visitor_name:    s.first.trim() + ' ' + s.last.trim(),
+        visitor_first_name: s.first.trim(),
         visitor_company: s.company.trim(),
         host_name:       contact.name,
         host_first_name: contact.name.split(' ')[0],
